@@ -52,15 +52,15 @@ jobs:
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
-          cp "$APK" "Snake_DeepSeek-v1.2.apk"
-          sha256sum "Snake_DeepSeek-v1.2.apk" | tee "Snake_DeepSeek-v1.2.sha256"
+          cp "$APK" "Snake_DeepSeek-v1.3.apk"
+          sha256sum "Snake_DeepSeek-v1.3.apk" | tee "Snake_DeepSeek-v1.3.sha256"
 
       - name: Publicar APK compilado
         uses: actions/upload-artifact@v4
         with:
-          name: Snake_DeepSeek-v1.2
+          name: Snake_DeepSeek-v1.3
           path: |
-            Snake_DeepSeek-v1.2.apk
-            Snake_DeepSeek-v1.2.sha256
+            Snake_DeepSeek-v1.3.apk
+            Snake_DeepSeek-v1.3.sha256
           if-no-files-found: error
           retention-days: 30
