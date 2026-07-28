@@ -8,6 +8,11 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 public final class MainActivity extends Activity {
     private WebView webView;
 
@@ -34,7 +39,42 @@ public final class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
 
         setContentView(webView);
-        webView.loadUrl("file:///android_asset/index.html");
+        loadGame();
+    }
+
+    private void loadGame() {
+        try {
+            String html = readAsset("index.html");
+            html = html.replace(
+                    "</head>",
+                    "<link rel=\"stylesheet\" href=\"difficulty.css\"></head>"
+            );
+            html = html.replace(
+                    "<script>",
+                    "<script src=\"difficulty-bootstrap.js\"></script><script>"
+            );
+            webView.loadDataWithBaseURL(
+                    "file:///android_asset/",
+                    html,
+                    "text/html",
+                    "UTF-8",
+                    null
+            );
+        } catch (IOException exception) {
+            webView.loadUrl("file:///android_asset/index.html");
+        }
+    }
+
+    private String readAsset(String fileName) throws IOException {
+        try (InputStream input = getAssets().open(fileName);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
+        }
     }
 
     @Override
