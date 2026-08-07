@@ -1,4 +1,4 @@
-name: Compilar Albion Marketrelli 1.1.1 APK
+name: Compilar Albion Marketrelli 1.2.0 APK
 
 on:
   workflow_dispatch:
@@ -16,13 +16,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 50
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v6
 
-      - name: Reconstruir fuente base y aplicar corrección 1.1.1
+      - name: Reconstruir fuente y aplicar Albion Marketrelli 1.2.0
         shell: bash
         run: |
           set -euo pipefail
@@ -57,12 +57,21 @@ jobs:
           unzip -oq "$SOURCE_ZIP" -d . || true
           test -s albionapp/src/main/res/drawable/app_icon.png
           cp albionapp/src/main/res/drawable/app_icon.png albionapp/src/main/assets/www/icons/icon-512.png
+
           cp overrides/v1.1.1/MainActivity.java albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
-          cp overrides/v1.1.1/build.gradle.kts albionapp/build.gradle.kts
-          cp overrides/v1.1.1/android-config.test.mjs albionapp/web-tests/android-config.test.mjs
-          cp overrides/v1.1.1/PROJECT_STATE.md albionapp/PROJECT_STATE.md
-          grep -F 'versionCode = 3' albionapp/build.gradle.kts
-          grep -F 'versionName = "1.1.1"' albionapp/build.gradle.kts
+          unzip -oq overrides/v1.2.0/albion-marketrelli-v1.2.0-overlay.zip -d albionapp
+          sed -i 's#AlbionMarketrelli/1.1.1#AlbionMarketrelli/1.2.0#g' albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
+
+          grep -F 'versionCode = 4' albionapp/build.gradle.kts
+          grep -F 'versionName = "1.2.0"' albionapp/build.gradle.kts
+          grep -F 'AlbionMarketrelli/1.2.0' albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
+
+      - name: Generar catálogo bilingüe y taxonomía actual
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 albionapp/tools/build_catalog.py --output albionapp/src/main/assets/www/data/catalog.json | tee Albion_Marketrelli-v1.2.0-catalog-build.txt
+          test -s albionapp/src/main/assets/www/data/catalog.json
 
       - name: Configurar JDK 17
         uses: actions/setup-java@v5
@@ -81,15 +90,48 @@ jobs:
           gradle-version: '8.9'
           cache-provider: basic
 
+      - name: Validar catálogo real, búsqueda bilingüe y categorías
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE' | tee Albion_Marketrelli-v1.2.0-catalog-validation.txt
+          import fs from 'node:fs';
+          import { parseCatalogData, searchCatalog, validateCatalog } from './albionapp/src/main/assets/www/src/core.mjs';
+          const raw = JSON.parse(fs.readFileSync('./albionapp/src/main/assets/www/data/catalog.json', 'utf8'));
+          const catalog = parseCatalogData(raw);
+          const validation = validateCatalog(catalog);
+          if (!validation.valid) throw new Error(validation.errors.join(' '));
+          if (catalog.categories.length < 10) throw new Error(`Taxonomía incompleta: ${catalog.categories.length} categorías raíz.`);
+          const bilingual = catalog.items.filter((item) => item.nameEn && item.nameEs).length;
+          const categorized = catalog.items.filter((item) => item.categoryPath.length).length;
+          if (bilingual < 1000) throw new Error(`Solo ${bilingual} registros bilingües.`);
+          if (categorized < 1000) throw new Error(`Solo ${categorized} registros categorizados.`);
+          for (const id of ['T4_BAG', 'T4_CAPE', 'T4_MAIN_SWORD', 'T8_MOUNTUPGRADE_HORSE_MORGANA', 'UNIQUE_HEAD_XMAS']) {
+            const item = catalog.items.find((entry) => entry.id === id);
+            if (!item?.nameEn || !item?.nameEs) throw new Error(`${id} no contiene nombres EN-US y ES-ES.`);
+            if (!searchCatalog(catalog.items, item.nameEn, 50).some((entry) => entry.id === id)) throw new Error(`Búsqueda EN no recupera ${id}.`);
+            if (!searchCatalog(catalog.items, item.nameEs, 50).some((entry) => entry.id === id)) throw new Error(`Búsqueda ES no recupera ${id}.`);
+            console.log(`${id}: ES="${item.nameEs}" · EN="${item.nameEn}" · categoría=${item.categoryPath.join(' > ') || 'sin categoría'}`);
+          }
+          const sword = catalog.items.find((entry) => entry.id === 'T4_MAIN_SWORD');
+          if (sword?.categoryPath?.[0] !== 'weapons') throw new Error('T4_MAIN_SWORD no quedó en weapons.');
+          const bag = catalog.items.find((entry) => entry.id === 'T4_BAG');
+          if (bag?.categoryPath?.[0] !== 'bags') throw new Error('T4_BAG no quedó en bags.');
+          const enchantedSword = catalog.items.find((entry) => entry.id === 'T4_MAIN_SWORD@1');
+          if (enchantedSword && enchantedSword.categoryPath.join('/') !== sword.categoryPath.join('/')) throw new Error('La variante encantada no heredó la categoría del objeto base.');
+          console.log(`OK: ${catalog.items.length} registros; ${bilingual} bilingües; ${categorized} categorizados; ${catalog.categories.length} categorías raíz.`);
+          NODE
+
       - name: Validar lógica y configuración
         shell: bash
         run: |
           set -euo pipefail
-          node --test albionapp/web-tests/core.test.mjs albionapp/web-tests/android-config.test.mjs | tee Albion_Marketrelli-v1.1.1-node-tests.txt
+          node --test albionapp/web-tests/core.test.mjs albionapp/web-tests/android-config.test.mjs | tee Albion_Marketrelli-v1.2.0-node-tests.txt
           node --check albionapp/src/main/assets/www/app.js
           node --check albionapp/src/main/assets/www/src/core.mjs
+          python3 albionapp/web-tests/catalog_builder_test.py | tee Albion_Marketrelli-v1.2.0-builder-tests.txt
 
-      - name: Probar diseño responsive
+      - name: Probar diseño responsive y navegador de categorías
         shell: bash
         run: |
           set -euo pipefail
@@ -97,7 +139,7 @@ jobs:
           CHROMIUM_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROMIUM_BIN"
           export CHROMIUM_BIN
-          python3 albionapp/web-tests/layout_test.py | tee Albion_Marketrelli-v1.1.1-layout-tests.txt
+          python3 albionapp/web-tests/layout_test.py | tee Albion_Marketrelli-v1.2.0-layout-tests.txt
 
       - name: Ejecutar pruebas unitarias Android
         run: gradle :albionapp:testDebugUnitTest --no-daemon --stacktrace
@@ -119,24 +161,37 @@ jobs:
           profile: pixel_6
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash overrides/v1.1.1/smoke.sh
+          script: |
+            bash -c 'set -euo pipefail
+            APK="$GITHUB_WORKSPACE/albionapp/build/outputs/apk/debug/albionapp-debug.apk"
+            PACKAGE="cl.javiersanmartin.albionmarketrelli"
+            COMPONENT="$PACKAGE/cl.javiersanmartin.albionmarketamerica.MainActivity"
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -W -n "$COMPONENT" | tee Albion_Marketrelli-v1.2.0-startup.txt
+            sleep 8
+            PID="$(adb shell pidof "$PACKAGE" | tr -d "\r")"
+            test -n "$PID"
+            adb logcat -d > Albion_Marketrelli-v1.2.0-logcat.txt
+            if grep -E "FATAL EXCEPTION: main|Process: ${PACKAGE}" Albion_Marketrelli-v1.2.0-logcat.txt; then exit 1; fi'
 
       - name: Verificar APK, firma y metadatos
         shell: bash
         run: |
           set -euo pipefail
           APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
-          OUTPUT="Albion_Marketrelli-v1.1.1.apk"
-          PREFIX="Albion_Marketrelli-v1.1.1"
+          OUTPUT="Albion_Marketrelli-v1.2.0.apk"
+          PREFIX="Albion_Marketrelli-v1.2.0"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
           test -s "$APK"
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee "${PREFIX}-signature.txt"
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee "${PREFIX}-badging.txt"
           grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" "${PREFIX}-signature.txt"
-          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='3' versionName='1.1.1'" "${PREFIX}-badging.txt"
+          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='4' versionName='1.2.0'" "${PREFIX}-badging.txt"
           grep -F "application-label:'Albion Marketrelli'" "${PREFIX}-badging.txt"
           grep -F "sdkVersion:'26'" "${PREFIX}-badging.txt"
           grep -F "targetSdkVersion:'35'" "${PREFIX}-badging.txt"
+          unzip -l "$APK" | grep -F 'assets/www/data/catalog.json'
           cp "$APK" "$OUTPUT"
           sha256sum "$OUTPUT" | tee "${PREFIX}.sha256"
           stat --printf='Tamaño: %s bytes\n' "$OUTPUT" | tee "${PREFIX}-size.txt"
@@ -144,17 +199,20 @@ jobs:
       - name: Publicar APK verificado
         uses: actions/upload-artifact@v4
         with:
-          name: Albion_Marketrelli-v1.1.1
+          name: Albion_Marketrelli-v1.2.0
           path: |
-            Albion_Marketrelli-v1.1.1.apk
-            Albion_Marketrelli-v1.1.1.sha256
-            Albion_Marketrelli-v1.1.1-size.txt
-            Albion_Marketrelli-v1.1.1-badging.txt
-            Albion_Marketrelli-v1.1.1-signature.txt
-            Albion_Marketrelli-v1.1.1-node-tests.txt
-            Albion_Marketrelli-v1.1.1-layout-tests.txt
-            Albion_Marketrelli-v1.1.1-startup.txt
-            Albion_Marketrelli-v1.1.1-logcat.txt
+            Albion_Marketrelli-v1.2.0.apk
+            Albion_Marketrelli-v1.2.0.sha256
+            Albion_Marketrelli-v1.2.0-size.txt
+            Albion_Marketrelli-v1.2.0-badging.txt
+            Albion_Marketrelli-v1.2.0-signature.txt
+            Albion_Marketrelli-v1.2.0-catalog-build.txt
+            Albion_Marketrelli-v1.2.0-catalog-validation.txt
+            Albion_Marketrelli-v1.2.0-node-tests.txt
+            Albion_Marketrelli-v1.2.0-builder-tests.txt
+            Albion_Marketrelli-v1.2.0-layout-tests.txt
+            Albion_Marketrelli-v1.2.0-startup.txt
+            Albion_Marketrelli-v1.2.0-logcat.txt
             albionapp/build/test-results/testDebugUnitTest/*.xml
           if-no-files-found: error
           retention-days: 30
