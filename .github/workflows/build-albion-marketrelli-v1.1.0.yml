@@ -27,6 +27,11 @@ jobs:
           file "$SOURCE"
           echo '3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  /tmp/albion-marketrelli-v1.1.0-source.zip' | sha256sum --check --strict
           unzip -oq "$SOURCE" -d .
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
           grep -F 'versionCode = 2' albionapp/build.gradle.kts
           grep -F 'versionName = "1.1.0"' albionapp/build.gradle.kts
           grep -F 'applicationId = "cl.javiersanmartin.albionmarketrelli"' albionapp/build.gradle.kts
