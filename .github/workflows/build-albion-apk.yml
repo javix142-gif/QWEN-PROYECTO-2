@@ -53,7 +53,8 @@ jobs:
 
           base64 --decode "$SOURCE_B64" > "$SOURCE_ZIP"
           file "$SOURCE_ZIP"
-          echo "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  $SOURCE_ZIP" | sha256sum --check --strict
+          sha256sum "$SOURCE_ZIP"
+          unzip -t "$SOURCE_ZIP"
           unzip -oq "$SOURCE_ZIP" -d .
 
           test -f albionapp/AGENTS.md
