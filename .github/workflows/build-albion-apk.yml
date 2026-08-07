@@ -28,6 +28,7 @@ jobs:
           set -euo pipefail
           SOURCE_B64="/tmp/albion-marketrelli-v1.1.0-source.zip.b64"
           SOURCE_ZIP="/tmp/albion-marketrelli-v1.1.0-source.zip"
+          OVERLAY_RAW="overrides/v1.2.0/albion-marketrelli-v1.2.0-overlay.zip"
           OVERLAY_ZIP="/tmp/albion-marketrelli-v1.2.0-overlay.zip"
           cat \
             build-src/albion-marketrelli-v1.1.0.part-00 \
@@ -60,7 +61,12 @@ jobs:
           cp albionapp/src/main/res/drawable/app_icon.png albionapp/src/main/assets/www/icons/icon-512.png
 
           cp overrides/v1.1.1/MainActivity.java albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
-          tr -d '\r\n' < overrides/v1.2.0/albion-marketrelli-v1.2.0-overlay.zip | base64 --decode > "$OVERLAY_ZIP"
+          if unzip -t "$OVERLAY_RAW" >/tmp/overlay-test.txt 2>&1; then
+            cp "$OVERLAY_RAW" "$OVERLAY_ZIP"
+          else
+            cat /tmp/overlay-test.txt
+            zip -FF "$OVERLAY_RAW" --out "$OVERLAY_ZIP"
+          fi
           unzip -t "$OVERLAY_ZIP"
           unzip -oq "$OVERLAY_ZIP" -d albionapp
           sed -i 's#AlbionMarketrelli/1.1.1#AlbionMarketrelli/1.2.0#g' albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
