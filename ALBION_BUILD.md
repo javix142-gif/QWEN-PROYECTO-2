@@ -1,12 +1,13 @@
-# Build temporal de Albion Market América
+# Build de Albion Marketrelli 1.1.0
 
-Esta rama contiene una compilación aislada del APK solicitada por Javier. No modifica la aplicación Snake de la rama `main`.
+Esta rama contiene una compilación aislada de Albion Marketrelli. No modifica la aplicación Snake de la rama `main`.
 
-La fuente Android se conserva en partes Base64 para reconstruir `albion-market-android.zip` dentro de GitHub Actions.
+La fuente Android base y los cambios de versión se reconstruyen desde partes verificadas dentro de GitHub Actions.
 
-- SHA-256 de la fuente: `eea0aa89ed2973793c17973af975b9a4c47f01aea5885f24f17b0776a676a1bd`
 - Módulo: `albionapp`
-- Application ID: `cl.javiersanmartin.albionmarketamerica`
-- Versión: `1.0.0` (`versionCode 1`)
-- Salida: `Albion_Market_America-v1.0.0.apk`
-- Validación: pruebas web, compilación Android, metadatos y firma del APK mediante GitHub Actions.
+- Application ID: `cl.javiersanmartin.albionmarketrelli`
+- Versión: `1.1.0` (`versionCode 2`)
+- Android mínimo: API 26
+- Android objetivo: API 35
+- Salida: `Albion_Marketrelli-v1.1.0.apk`
+- Validaciones: catálogo y objetos conocidos, semántica del Mercado Negro, sintaxis JavaScript, diseño en 320/360/393/412 px, insets de gestos/tres botones/teclado, pruebas JUnit, compilación Android, firma APK v2, metadatos y SHA-256.
