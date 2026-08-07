@@ -30,7 +30,20 @@ jobs:
 
           names = [
               *(f"build-src/albion-marketrelli-v1.1.0.part-{index:02d}" for index in range(9)),
-              *(f"build-src/albion-marketrelli-v1.1.0.part-{index:02d}{suffix}" for index in range(9, 15) for suffix in ("a", "b")),
+              "build-src/albion-marketrelli-v1.1.0.part-09a",
+              "build-src/albion-marketrelli-v1.1.0.part-09b",
+              "build-src/albion-marketrelli-v1.1.0.part-10a",
+              "build-src/albion-marketrelli-v1.1.0.part-10b",
+              "build-src/albion-marketrelli-v1.1.0.part-11a",
+              "build-src/albion-marketrelli-v1.1.0.part-11b",
+              "build-src/albion-marketrelli-v1.1.0.part-12a",
+              "build-src/albion-marketrelli-v1.1.0.part-12b1",
+              "build-src/albion-marketrelli-v1.1.0.part-12b2",
+              "build-src/albion-marketrelli-v1.1.0.part-13a1",
+              "build-src/albion-marketrelli-v1.1.0.part-13a2",
+              "build-src/albion-marketrelli-v1.1.0.part-13b",
+              "build-src/albion-marketrelli-v1.1.0.part-14a",
+              "build-src/albion-marketrelli-v1.1.0.part-14b",
           ]
           allowed = set(string.ascii_letters + string.digits + "+/=")
           fragments = []
