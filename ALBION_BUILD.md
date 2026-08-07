@@ -9,3 +9,4 @@ La fuente Android se conserva en partes Base64 para reconstruir `albion-market-a
 - Application ID: `cl.javiersanmartin.albionmarketamerica`
 - Versión: `1.0.0` (`versionCode 1`)
 - Salida: `Albion_Market_America-v1.0.0.apk`
+- Validación: pruebas web, compilación Android, metadatos y firma del APK mediante GitHub Actions.
