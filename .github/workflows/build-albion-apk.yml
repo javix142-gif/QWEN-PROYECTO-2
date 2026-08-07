@@ -1,4 +1,4 @@
-name: Compilar Albion Market América APK
+name: Compilar Albion Marketrelli APK
 
 on:
   workflow_dispatch:
@@ -29,6 +29,24 @@ jobs:
           test -f albionapp/AGENTS.md
           test -f albionapp/PROJECT_STATE.md
           test -f albionapp/src/main/AndroidManifest.xml
+
+      - name: Aplicar nombre e icono Marketrelli
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            build-src/marketrelli-patch.zip.b64.part-00 \
+            build-src/marketrelli-patch.zip.b64.part-01 \
+            build-src/marketrelli-patch.zip.b64.part-03 \
+            build-src/marketrelli-patch.zip.b64.part-02 \
+            build-src/marketrelli-patch.zip.b64.part-04 \
+            > /tmp/marketrelli-patch.b64
+          base64 --decode /tmp/marketrelli-patch.b64 > /tmp/marketrelli-patch.zip
+          echo "c5afa66b350618b6fa983f28176f0b820e1207a5e4b07c6b237a188a0b2cc6b1  /tmp/marketrelli-patch.zip" | sha256sum --check --strict
+          unzip -oq /tmp/marketrelli-patch.zip -d .
+          grep -F "Albion Marketrelli" albionapp/src/main/res/values/strings.xml
+          grep -F 'applicationId = "cl.javiersanmartin.albionmarketrelli"' albionapp/build.gradle.kts
+          grep -F 'android:name="cl.javiersanmartin.albionmarketamerica.MainActivity"' albionapp/src/main/AndroidManifest.xml
 
       - name: Configurar JDK 17
         uses: actions/setup-java@v5
@@ -71,33 +89,37 @@ jobs:
         run: |
           set -euo pipefail
           APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
-          OUTPUT="Albion_Market_America-v1.0.0.apk"
+          OUTPUT="Albion_Marketrelli-v1.0.0.apk"
+          PREFIX="Albion_Marketrelli-v1.0.0"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$APK"
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee Albion_Market_America-v1.0.0-signature.txt
-          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee Albion_Market_America-v1.0.0-badging.txt
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee "${PREFIX}-signature.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee "${PREFIX}-badging.txt"
 
-          grep -F "package: name='cl.javiersanmartin.albionmarketamerica' versionCode='1' versionName='1.0.0'" Albion_Market_America-v1.0.0-badging.txt
-          grep -F "sdkVersion:'26'" Albion_Market_America-v1.0.0-badging.txt
-          grep -F "targetSdkVersion:'35'" Albion_Market_America-v1.0.0-badging.txt
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" "${PREFIX}-signature.txt"
+          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='1' versionName='1.0.0'" "${PREFIX}-badging.txt"
+          grep -F "application-label:'Albion Marketrelli'" "${PREFIX}-badging.txt"
+          grep -F "sdkVersion:'26'" "${PREFIX}-badging.txt"
+          grep -F "targetSdkVersion:'35'" "${PREFIX}-badging.txt"
           unzip -l "$APK" | grep -F "assets/www/index.html"
           unzip -l "$APK" | grep -F "assets/www/app.js"
           unzip -l "$APK" | grep -F "assets/www/src/core.mjs"
+          unzip -l "$APK" | grep -F "res/drawable/app_icon.png"
 
           cp "$APK" "$OUTPUT"
-          sha256sum "$OUTPUT" | tee Albion_Market_America-v1.0.0.sha256
-          stat --printf='Tamaño: %s bytes\n' "$OUTPUT" | tee Albion_Market_America-v1.0.0-size.txt
+          sha256sum "$OUTPUT" | tee "${PREFIX}.sha256"
+          stat --printf='Tamaño: %s bytes\n' "$OUTPUT" | tee "${PREFIX}-size.txt"
 
       - name: Publicar APK compilado
         uses: actions/upload-artifact@v4
         with:
-          name: Albion_Market_America-v1.0.0
+          name: Albion_Marketrelli-v1.0.0
           path: |
-            Albion_Market_America-v1.0.0.apk
-            Albion_Market_America-v1.0.0.sha256
-            Albion_Market_America-v1.0.0-size.txt
-            Albion_Market_America-v1.0.0-badging.txt
-            Albion_Market_America-v1.0.0-signature.txt
+            Albion_Marketrelli-v1.0.0.apk
+            Albion_Marketrelli-v1.0.0.sha256
+            Albion_Marketrelli-v1.0.0-size.txt
+            Albion_Marketrelli-v1.0.0-badging.txt
+            Albion_Marketrelli-v1.0.0-signature.txt
           if-no-files-found: error
           retention-days: 30
