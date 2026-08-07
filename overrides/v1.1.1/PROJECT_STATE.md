@@ -23,11 +23,14 @@
 - Sustituido el manejo directo de WindowInsets de plataforma por AndroidX WindowCompat/WindowInsetsCompat.
 - Puente JavaScript expuesto mediante clase pública.
 - Añadido fallback de diagnóstico de arranque.
-- Se requiere smoke test de arranque en emulador Android antes de entregar.
+- Smoke test de arranque completado correctamente en emulador Android 16 / API 36.
+- La actividad realizó arranque en frío, el proceso permaneció activo y no hubo `FATAL EXCEPTION` del paquete en logcat.
+- Build validado por GitHub Actions, run `31178009470`.
+- SHA-256 APK: `cf81d022d01ceefea0ea8f52f6309a8282977738dca637dc2a6b14c10c1a0ce9`.
 
 ## Limitaciones
 - Los precios dependen de observaciones remitidas a Albion Online Data Project.
 - El APK requiere Internet para catálogo, iconos y precios.
 - Los nombres se muestran en inglés según la fuente original.
 - Un registro sin observaciones no implica que el objeto sea inexistente o no comerciable.
-- La entrega usa firma de depuración de CI; para actualizaciones instalables se requiere conservar la misma firma.
+- La entrega usa firma de depuración de CI. El certificado de 1.1.1 difiere del APK 1.1.0 anterior, por lo que se debe desinstalar 1.1.0 antes de instalar 1.1.1.
