@@ -1,0 +1,103 @@
+name: Compilar Albion Market América APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/albion-market-america-apk
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v6
+
+      - name: Restaurar fuente Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat build-src/albion-market-android.zip.b64.part-* > /tmp/albion-source.b64
+          base64 --decode /tmp/albion-source.b64 > /tmp/albion-source.zip
+          echo "eea0aa89ed2973793c17973af975b9a4c47f01aea5885f24f17b0776a676a1bd  /tmp/albion-source.zip" | sha256sum --check --strict
+          unzip -oq /tmp/albion-source.zip -d .
+          test -f albionapp/AGENTS.md
+          test -f albionapp/PROJECT_STATE.md
+          test -f albionapp/src/main/AndroidManifest.xml
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+          cache-provider: basic
+
+      - name: Validar lógica y sintaxis web
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test albionapp/web-tests/core.test.mjs
+          node --check albionapp/src/main/assets/www/app.js
+          node --check albionapp/src/main/assets/www/src/core.mjs
+
+      - name: Comprobar Android SDK 35 preinstalado
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$ANDROID_HOME/platforms/android-35"
+          test -d "$ANDROID_HOME/build-tools/35.0.0"
+
+      - name: Compilar APK de depuración
+        shell: bash
+        run: gradle :albionapp:assembleDebug --no-daemon --stacktrace
+
+      - name: Verificar APK, firma y metadatos
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
+          OUTPUT="Albion_Market_America-v1.0.0.apk"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+
+          test -s "$APK"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee Albion_Market_America-v1.0.0-signature.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee Albion_Market_America-v1.0.0-badging.txt
+
+          grep -F "package: name='cl.javiersanmartin.albionmarketamerica' versionCode='1' versionName='1.0.0'" Albion_Market_America-v1.0.0-badging.txt
+          grep -F "sdkVersion:'26'" Albion_Market_America-v1.0.0-badging.txt
+          grep -F "targetSdkVersion:'35'" Albion_Market_America-v1.0.0-badging.txt
+          unzip -l "$APK" | grep -F "assets/www/index.html"
+          unzip -l "$APK" | grep -F "assets/www/app.js"
+          unzip -l "$APK" | grep -F "assets/www/src/core.mjs"
+
+          cp "$APK" "$OUTPUT"
+          sha256sum "$OUTPUT" | tee Albion_Market_America-v1.0.0.sha256
+          stat --printf='Tamaño: %s bytes\n' "$OUTPUT" | tee Albion_Market_America-v1.0.0-size.txt
+
+      - name: Publicar APK compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: Albion_Market_America-v1.0.0
+          path: |
+            Albion_Market_America-v1.0.0.apk
+            Albion_Market_America-v1.0.0.sha256
+            Albion_Market_America-v1.0.0-size.txt
+            Albion_Market_America-v1.0.0-badging.txt
+            Albion_Market_America-v1.0.0-signature.txt
+          if-no-files-found: error
+          retention-days: 30
