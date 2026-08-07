@@ -113,31 +113,33 @@ jobs:
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           AVDMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
           EMULATOR="$ANDROID_HOME/emulator/emulator"
+          ADB="$ANDROID_HOME/platform-tools/adb"
           APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
           PACKAGE="cl.javiersanmartin.albionmarketrelli"
           COMPONENT="$PACKAGE/cl.javiersanmartin.albionmarketamerica.MainActivity"
 
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "emulator" "system-images;android-36;google_apis;x86_64"
+          test -x "$ADB"
           echo no | "$AVDMANAGER" create avd --force --name marketrelli_api36 --package "system-images;android-36;google_apis;x86_64"
           "$EMULATOR" -avd marketrelli_api36 -no-window -noaudio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > emulator.log 2>&1 &
           EMULATOR_PID=$!
           trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
 
-          adb wait-for-device
+          "$ADB" wait-for-device
           for i in $(seq 1 90); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then break; fi
+            if [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then break; fi
             sleep 2
           done
-          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+          test "$("$ADB" shell getprop sys.boot_completed | tr -d '\r')" = "1"
 
-          adb install -r "$APK"
-          adb logcat -c
-          adb shell am start -W -n "$COMPONENT" | tee Albion_Marketrelli-v1.1.1-startup.txt
+          "$ADB" install -r "$APK"
+          "$ADB" logcat -c
+          "$ADB" shell am start -W -n "$COMPONENT" | tee Albion_Marketrelli-v1.1.1-startup.txt
           sleep 8
-          PID="$(adb shell pidof "$PACKAGE" | tr -d '\r')"
+          PID="$("$ADB" shell pidof "$PACKAGE" | tr -d '\r')"
           test -n "$PID"
-          adb logcat -d > Albion_Marketrelli-v1.1.1-logcat.txt
+          "$ADB" logcat -d > Albion_Marketrelli-v1.1.1-logcat.txt
           if grep -E "FATAL EXCEPTION: main|Process: ${PACKAGE}" Albion_Marketrelli-v1.1.1-logcat.txt; then
             exit 1
           fi
