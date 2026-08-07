@@ -18,14 +18,40 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v6
 
-      - name: Descargar y verificar fuente 1.1.0
+      - name: Reconstruir y verificar fuente 1.1.0
         shell: bash
         run: |
           set -euo pipefail
+          SOURCE_B64="/tmp/albion-marketrelli-v1.1.0-source.zip.b64"
           SOURCE_ZIP="/tmp/albion-marketrelli-v1.1.0-source.zip"
-          curl --fail --location --retry 3 --retry-delay 2 \
-            "https://drive.google.com/uc?export=download&id=1h3GnBTh_3mtRYyXAtJ5UQHe4XmGf3sFG" \
-            --output "$SOURCE_ZIP"
+
+          cat \
+            build-src/albion-marketrelli-v1.1.0.part-00 \
+            build-src/albion-marketrelli-v1.1.0.part-01 \
+            build-src/albion-marketrelli-v1.1.0.part-02 \
+            build-src/albion-marketrelli-v1.1.0.part-03 \
+            build-src/albion-marketrelli-v1.1.0.part-04 \
+            build-src/albion-marketrelli-v1.1.0.part-05 \
+            build-src/albion-marketrelli-v1.1.0.part-06 \
+            build-src/albion-marketrelli-v1.1.0.part-07 \
+            build-src/albion-marketrelli-v1.1.0.part-08 \
+            build-src/albion-marketrelli-v1.1.0.part-09a \
+            build-src/albion-marketrelli-v1.1.0.part-09b \
+            build-src/albion-marketrelli-v1.1.0.part-10a \
+            build-src/albion-marketrelli-v1.1.0.part-10b \
+            build-src/albion-marketrelli-v1.1.0.part-11a \
+            build-src/albion-marketrelli-v1.1.0.part-11b \
+            build-src/albion-marketrelli-v1.1.0.part-12a \
+            build-src/albion-marketrelli-v1.1.0.part-12b1 \
+            build-src/albion-marketrelli-v1.1.0.part-12b2 \
+            build-src/albion-marketrelli-v1.1.0.part-13a1 \
+            build-src/albion-marketrelli-v1.1.0.part-13a2 \
+            build-src/albion-marketrelli-v1.1.0.part-13b \
+            build-src/albion-marketrelli-v1.1.0.part-14a \
+            build-src/albion-marketrelli-v1.1.0.part-14b \
+            | tr -d '\r\n' > "$SOURCE_B64"
+
+          base64 --decode "$SOURCE_B64" > "$SOURCE_ZIP"
           file "$SOURCE_ZIP"
           echo "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  $SOURCE_ZIP" | sha256sum --check --strict
           unzip -oq "$SOURCE_ZIP" -d .
