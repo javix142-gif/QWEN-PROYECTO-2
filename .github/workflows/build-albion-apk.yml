@@ -28,6 +28,7 @@ jobs:
           set -euo pipefail
           SOURCE_B64="/tmp/albion-marketrelli-v1.1.0-source.zip.b64"
           SOURCE_ZIP="/tmp/albion-marketrelli-v1.1.0-source.zip"
+          OVERLAY_ZIP="/tmp/albion-marketrelli-v1.2.0-overlay.zip"
           cat \
             build-src/albion-marketrelli-v1.1.0.part-00 \
             build-src/albion-marketrelli-v1.1.0.part-01 \
@@ -59,7 +60,9 @@ jobs:
           cp albionapp/src/main/res/drawable/app_icon.png albionapp/src/main/assets/www/icons/icon-512.png
 
           cp overrides/v1.1.1/MainActivity.java albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
-          unzip -oq overrides/v1.2.0/albion-marketrelli-v1.2.0-overlay.zip -d albionapp
+          tr -d '\r\n' < overrides/v1.2.0/albion-marketrelli-v1.2.0-overlay.zip | base64 --decode > "$OVERLAY_ZIP"
+          unzip -t "$OVERLAY_ZIP"
+          unzip -oq "$OVERLAY_ZIP" -d albionapp
           sed -i 's#AlbionMarketrelli/1.1.1#AlbionMarketrelli/1.2.0#g' albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
 
           grep -F 'versionCode = 4' albionapp/build.gradle.kts
