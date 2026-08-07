@@ -1,0 +1,108 @@
+name: Build Albion Marketrelli 1.1.0
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/albion-marketrelli-v1.1.0
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Descargar y verificar fuente
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE=/tmp/albion-marketrelli-v1.1.0-source.zip
+          curl --fail --location --retry 3 --retry-delay 2 \
+            'https://drive.google.com/uc?export=download&id=1h3GnBTh_3mtRYyXAtJ5UQHe4XmGf3sFG' \
+            --output "$SOURCE"
+          file "$SOURCE"
+          echo '3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  /tmp/albion-marketrelli-v1.1.0-source.zip' | sha256sum --check --strict
+          unzip -oq "$SOURCE" -d .
+          grep -F 'versionCode = 2' albionapp/build.gradle.kts
+          grep -F 'versionName = "1.1.0"' albionapp/build.gradle.kts
+          grep -F 'applicationId = "cl.javiersanmartin.albionmarketrelli"' albionapp/build.gradle.kts
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+          cache-provider: basic
+
+      - name: Pruebas web y configuración Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test albionapp/web-tests/core.test.mjs albionapp/web-tests/android-config.test.mjs | tee Albion_Marketrelli-v1.1.0-node-tests.txt
+          node --check albionapp/src/main/assets/www/app.js
+          node --check albionapp/src/main/assets/www/src/core.mjs
+
+      - name: Pruebas responsive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet playwright==1.57.0
+          export CHROMIUM_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          python3 albionapp/web-tests/layout_test.py | tee Albion_Marketrelli-v1.1.0-layout-tests.txt
+
+      - name: Pruebas Android y compilación
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$ANDROID_HOME/platforms/android-35"
+          test -d "$ANDROID_HOME/build-tools/35.0.0"
+          gradle :albionapp:testDebugUnitTest :albionapp:assembleDebug --no-daemon --stacktrace
+
+      - name: Verificar APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=albionapp/build/outputs/apk/debug/albionapp-debug.apk
+          PREFIX=Albion_Marketrelli-v1.1.0
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          test -s "$APK"
+          "$TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee "$PREFIX-signature.txt"
+          "$TOOLS/aapt" dump badging "$APK" | tee "$PREFIX-badging.txt"
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' "$PREFIX-signature.txt"
+          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='2' versionName='1.1.0'" "$PREFIX-badging.txt"
+          grep -F "application-label:'Albion Marketrelli'" "$PREFIX-badging.txt"
+          grep -F "sdkVersion:'26'" "$PREFIX-badging.txt"
+          grep -F "targetSdkVersion:'35'" "$PREFIX-badging.txt"
+          unzip -p "$APK" assets/www/index.html | grep -F 'Albion Marketrelli'
+          unzip -p "$APK" assets/www/manifest.webmanifest | grep -F '"name": "Albion Marketrelli"'
+          unzip -p "$APK" assets/www/src/core.mjs | grep -F 'Black Market'
+          unzip -p "$APK" assets/www/styles.css | grep -F 'overflow-x: clip'
+          cp "$APK" "$PREFIX.apk"
+          sha256sum "$PREFIX.apk" | tee "$PREFIX.sha256"
+          stat --printf='Tamaño: %s bytes\n' "$PREFIX.apk" | tee "$PREFIX-size.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Albion_Marketrelli-v1.1.0
+          path: |
+            Albion_Marketrelli-v1.1.0.apk
+            Albion_Marketrelli-v1.1.0.sha256
+            Albion_Marketrelli-v1.1.0-size.txt
+            Albion_Marketrelli-v1.1.0-badging.txt
+            Albion_Marketrelli-v1.1.0-signature.txt
+            Albion_Marketrelli-v1.1.0-node-tests.txt
+            Albion_Marketrelli-v1.1.0-layout-tests.txt
+            albionapp/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: error
+          retention-days: 30
