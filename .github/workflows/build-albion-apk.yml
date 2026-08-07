@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           cat build-src/marketrelli-1.1.0-patch.part-* > /tmp/marketrelli-1.1.0.b64
-          base64 --decode /tmp/marketrelli-1.1.0.b64 > /tmp/marketrelli-1.1.0.zip
+          base64 --ignore-garbage --decode /tmp/marketrelli-1.1.0.b64 > /tmp/marketrelli-1.1.0.zip
           echo "e8139714a97876f3babf0ff12a25eef205f65fac85b53f1582c742b2e8c6b04f  /tmp/marketrelli-1.1.0.zip" | sha256sum --check --strict
           unzip -oq /tmp/marketrelli-1.1.0.zip -d .
 
