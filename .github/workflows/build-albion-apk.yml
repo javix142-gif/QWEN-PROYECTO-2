@@ -39,7 +39,8 @@ jobs:
             build-src/marketrelli-patch.zip.b64.part-01 \
             build-src/marketrelli-patch.zip.b64.part-03 \
             build-src/marketrelli-patch.zip.b64.part-02 \
-            build-src/marketrelli-patch.zip.b64.part-04 \
+            build-src/marketrelli-patch.zip.b64.part-04a \
+            build-src/marketrelli-patch.zip.b64.part-04b \
             > /tmp/marketrelli-patch.b64
           base64 --decode /tmp/marketrelli-patch.b64 > /tmp/marketrelli-patch.zip
           echo "c5afa66b350618b6fa983f28176f0b820e1207a5e4b07c6b237a188a0b2cc6b1  /tmp/marketrelli-patch.zip" | sha256sum --check --strict
