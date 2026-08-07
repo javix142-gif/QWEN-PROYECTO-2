@@ -22,34 +22,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat \
-            build-src/albion-marketrelli-v1.1.0.part-00 \
-            build-src/albion-marketrelli-v1.1.0.part-01 \
-            build-src/albion-marketrelli-v1.1.0.part-02 \
-            build-src/albion-marketrelli-v1.1.0.part-03 \
-            build-src/albion-marketrelli-v1.1.0.part-04 \
-            build-src/albion-marketrelli-v1.1.0.part-05 \
-            build-src/albion-marketrelli-v1.1.0.part-06 \
-            build-src/albion-marketrelli-v1.1.0.part-07 \
-            build-src/albion-marketrelli-v1.1.0.part-08 \
-            build-src/albion-marketrelli-v1.1.0.part-09a \
-            build-src/albion-marketrelli-v1.1.0.part-09b \
-            build-src/albion-marketrelli-v1.1.0.part-10a \
-            build-src/albion-marketrelli-v1.1.0.part-10b \
-            build-src/albion-marketrelli-v1.1.0.part-11a \
-            build-src/albion-marketrelli-v1.1.0.part-11b \
-            build-src/albion-marketrelli-v1.1.0.part-12a \
-            build-src/albion-marketrelli-v1.1.0.part-12b \
-            build-src/albion-marketrelli-v1.1.0.part-13a \
-            build-src/albion-marketrelli-v1.1.0.part-13b \
-            build-src/albion-marketrelli-v1.1.0.part-14a \
-            build-src/albion-marketrelli-v1.1.0.part-14b \
-            > /tmp/albion-marketrelli-v1.1.0.b64
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import string
+          from pathlib import Path
 
-          base64 --decode /tmp/albion-marketrelli-v1.1.0.b64 > /tmp/albion-marketrelli-v1.1.0-source.zip
-          echo "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  /tmp/albion-marketrelli-v1.1.0-source.zip" | sha256sum --check --strict
+          names = [
+              *(f"build-src/albion-marketrelli-v1.1.0.part-{index:02d}" for index in range(9)),
+              *(f"build-src/albion-marketrelli-v1.1.0.part-{index:02d}{suffix}" for index in range(9, 15) for suffix in ("a", "b")),
+          ]
+          allowed = set(string.ascii_letters + string.digits + "+/=")
+          fragments = []
+
+          for name in names:
+              text = Path(name).read_text(encoding="utf-8")
+              compact = "".join(text.split())
+              invalid = [(offset, char) for offset, char in enumerate(compact) if char not in allowed]
+              print(f"{name}: {len(compact)} caracteres")
+              if invalid:
+                  raise SystemExit(f"Caracteres Base64 inválidos en {name}: {invalid[:5]!r}")
+              fragments.append(compact)
+
+          encoded = "".join(fragments)
+          payload = base64.b64decode(encoded, validate=True)
+          digest = hashlib.sha256(payload).hexdigest()
+          expected = "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b"
+          if digest != expected:
+              raise SystemExit(f"SHA-256 de fuente incorrecto: {digest}; esperado: {expected}")
+
+          Path("/tmp/albion-marketrelli-v1.1.0-source.zip").write_bytes(payload)
+          print(f"Fuente verificada: {len(payload)} bytes · SHA-256 {digest}")
+          PY
+
           unzip -oq /tmp/albion-marketrelli-v1.1.0-source.zip -d .
-
           test -f albionapp/AGENTS.md
           test -f albionapp/PROJECT_STATE.md
           test -f albionapp/src/main/AndroidManifest.xml
