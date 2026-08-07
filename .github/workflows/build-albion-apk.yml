@@ -18,75 +18,18 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v6
 
-      - name: Restaurar fuente verificada
+      - name: Descargar y verificar fuente 1.1.0
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import base64
-          import hashlib
-          import string
-          from pathlib import Path
+          SOURCE_ZIP="/tmp/albion-marketrelli-v1.1.0-source.zip"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://drive.google.com/uc?export=download&id=1h3GnBTh_3mtRYyXAtJ5UQHe4XmGf3sFG" \
+            --output "$SOURCE_ZIP"
+          file "$SOURCE_ZIP"
+          echo "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  $SOURCE_ZIP" | sha256sum --check --strict
+          unzip -oq "$SOURCE_ZIP" -d .
 
-          names = [
-              "build-src/albion-marketrelli-v1.1.0.part-00",
-              "build-src/albion-marketrelli-v1.1.0.part-01",
-              "build-src/albion-marketrelli-v1.1.0.part-02",
-              "build-src/albion-marketrelli-v1.1.0.part-03",
-              "build-src/albion-marketrelli-v1.1.0.part-04-0",
-              "build-src/albion-marketrelli-v1.1.0.part-04-1",
-              "build-src/albion-marketrelli-v1.1.0.part-04-2",
-              "build-src/albion-marketrelli-v1.1.0.part-04-3",
-              "build-src/albion-marketrelli-v1.1.0.part-04-4",
-              "build-src/albion-marketrelli-v1.1.0.part-04-5",
-              "build-src/albion-marketrelli-v1.1.0.part-04-6",
-              "build-src/albion-marketrelli-v1.1.0.part-04-7",
-              "build-src/albion-marketrelli-v1.1.0.part-05",
-              "build-src/albion-marketrelli-v1.1.0.part-06",
-              "build-src/albion-marketrelli-v1.1.0.part-07",
-              "build-src/albion-marketrelli-v1.1.0.part-08",
-              "build-src/albion-marketrelli-v1.1.0.part-09a",
-              "build-src/albion-marketrelli-v1.1.0.part-09b",
-              "build-src/albion-marketrelli-v1.1.0.part-10a",
-              "build-src/albion-marketrelli-v1.1.0.part-10b",
-              "build-src/albion-marketrelli-v1.1.0.part-11a",
-              "build-src/albion-marketrelli-v1.1.0.part-11b-0",
-              "build-src/albion-marketrelli-v1.1.0.part-11b-1x",
-              "build-src/albion-marketrelli-v1.1.0.part-11b-2",
-              "build-src/albion-marketrelli-v1.1.0.part-11b-3",
-              "build-src/albion-marketrelli-v1.1.0.part-12a",
-              "build-src/albion-marketrelli-v1.1.0.part-12b1",
-              "build-src/albion-marketrelli-v1.1.0.part-12b2",
-              "build-src/albion-marketrelli-v1.1.0.part-13a1",
-              "build-src/albion-marketrelli-v1.1.0.part-13a2",
-              "build-src/albion-marketrelli-v1.1.0.part-13b",
-              "build-src/albion-marketrelli-v1.1.0.part-14a",
-              "build-src/albion-marketrelli-v1.1.0.part-14b",
-          ]
-          allowed = set(string.ascii_letters + string.digits + "+/=")
-          fragments = []
-
-          for name in names:
-              text = Path(name).read_text(encoding="utf-8")
-              compact = "".join(text.split())
-              invalid = [(offset, char) for offset, char in enumerate(compact) if char not in allowed]
-              print(f"{name}: {len(compact)} caracteres")
-              if invalid:
-                  raise SystemExit(f"Caracteres Base64 inválidos en {name}: {invalid[:5]!r}")
-              fragments.append(compact)
-
-          encoded = "".join(fragments)
-          payload = base64.b64decode(encoded, validate=True)
-          digest = hashlib.sha256(payload).hexdigest()
-          expected = "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b"
-          if digest != expected:
-              raise SystemExit(f"SHA-256 de fuente incorrecto: {digest}; esperado: {expected}")
-
-          Path("/tmp/albion-marketrelli-v1.1.0-source.zip").write_bytes(payload)
-          print(f"Fuente verificada: {len(payload)} bytes · SHA-256 {digest}")
-          PY
-
-          unzip -oq /tmp/albion-marketrelli-v1.1.0-source.zip -d .
           test -f albionapp/AGENTS.md
           test -f albionapp/PROJECT_STATE.md
           test -f albionapp/src/main/AndroidManifest.xml
