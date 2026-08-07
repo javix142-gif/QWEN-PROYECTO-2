@@ -1,4 +1,4 @@
-name: Compilar Albion Marketrelli APK
+name: Compilar Albion Marketrelli 1.1.0 APK
 
 on:
   workflow_dispatch:
@@ -12,46 +12,52 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v6
 
-      - name: Restaurar fuente Android
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat build-src/albion-market-android.zip.b64.part-* > /tmp/albion-source.b64
-          base64 --decode /tmp/albion-source.b64 > /tmp/albion-source.zip
-          echo "eea0aa89ed2973793c17973af975b9a4c47f01aea5885f24f17b0776a676a1bd  /tmp/albion-source.zip" | sha256sum --check --strict
-          unzip -oq /tmp/albion-source.zip -d .
-          test -f albionapp/AGENTS.md
-          test -f albionapp/PROJECT_STATE.md
-          test -f albionapp/src/main/AndroidManifest.xml
-
-      - name: Aplicar nombre e icono Marketrelli
+      - name: Restaurar fuente verificada
         shell: bash
         run: |
           set -euo pipefail
           cat \
-            build-src/marketrelli-patch.zip.b64.part-00 \
-            build-src/marketrelli-patch.zip.b64.part-01 \
-            build-src/marketrelli-patch.zip.b64.part-03 \
-            build-src/marketrelli-patch.zip.b64.part-02 \
-            build-src/marketrelli-final.part-00 \
-            build-src/marketrelli-final.part-01 \
-            build-src/marketrelli-final.part-02 \
-            build-src/marketrelli-final.part-03 \
-            build-src/marketrelli-final.part-04 \
-            build-src/marketrelli-final.part-05 \
-            > /tmp/marketrelli-patch.b64
-          base64 --decode /tmp/marketrelli-patch.b64 > /tmp/marketrelli-patch.zip
-          echo "c5afa66b350618b6fa983f28176f0b820e1207a5e4b07c6b237a188a0b2cc6b1  /tmp/marketrelli-patch.zip" | sha256sum --check --strict
-          unzip -oq /tmp/marketrelli-patch.zip -d .
-          grep -F "Albion Marketrelli" albionapp/src/main/res/values/strings.xml
+            build-src/albion-marketrelli-v1.1.0.part-00 \
+            build-src/albion-marketrelli-v1.1.0.part-01 \
+            build-src/albion-marketrelli-v1.1.0.part-02 \
+            build-src/albion-marketrelli-v1.1.0.part-03 \
+            build-src/albion-marketrelli-v1.1.0.part-04 \
+            build-src/albion-marketrelli-v1.1.0.part-05 \
+            build-src/albion-marketrelli-v1.1.0.part-06 \
+            build-src/albion-marketrelli-v1.1.0.part-07 \
+            build-src/albion-marketrelli-v1.1.0.part-08 \
+            build-src/albion-marketrelli-v1.1.0.part-09a \
+            build-src/albion-marketrelli-v1.1.0.part-09b \
+            build-src/albion-marketrelli-v1.1.0.part-10a \
+            build-src/albion-marketrelli-v1.1.0.part-10b \
+            build-src/albion-marketrelli-v1.1.0.part-11a \
+            build-src/albion-marketrelli-v1.1.0.part-11b \
+            build-src/albion-marketrelli-v1.1.0.part-12a \
+            build-src/albion-marketrelli-v1.1.0.part-12b \
+            build-src/albion-marketrelli-v1.1.0.part-13a \
+            build-src/albion-marketrelli-v1.1.0.part-13b \
+            build-src/albion-marketrelli-v1.1.0.part-14a \
+            build-src/albion-marketrelli-v1.1.0.part-14b \
+            > /tmp/albion-marketrelli-v1.1.0.b64
+
+          base64 --decode /tmp/albion-marketrelli-v1.1.0.b64 > /tmp/albion-marketrelli-v1.1.0-source.zip
+          echo "3e5b595b96570b91962b1532521b8b2c301cecee4453dc2fd2ebe4a2cc995b1b  /tmp/albion-marketrelli-v1.1.0-source.zip" | sha256sum --check --strict
+          unzip -oq /tmp/albion-marketrelli-v1.1.0-source.zip -d .
+
+          test -f albionapp/AGENTS.md
+          test -f albionapp/PROJECT_STATE.md
+          test -f albionapp/src/main/AndroidManifest.xml
+          test -f albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
+          test -f albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/InsetsPolicy.java
+          grep -F 'versionCode = 2' albionapp/build.gradle.kts
+          grep -F 'versionName = "1.1.0"' albionapp/build.gradle.kts
           grep -F 'applicationId = "cl.javiersanmartin.albionmarketrelli"' albionapp/build.gradle.kts
-          grep -F 'android:name="cl.javiersanmartin.albionmarketamerica.MainActivity"' albionapp/src/main/AndroidManifest.xml
 
       - name: Configurar JDK 17
         uses: actions/setup-java@v5
@@ -70,13 +76,26 @@ jobs:
           gradle-version: '8.9'
           cache-provider: basic
 
-      - name: Validar lógica y sintaxis web
+      - name: Validar catálogo, mercado y configuración Android
         shell: bash
         run: |
           set -euo pipefail
-          node --test albionapp/web-tests/core.test.mjs
+          node --test \
+            albionapp/web-tests/core.test.mjs \
+            albionapp/web-tests/android-config.test.mjs \
+            | tee Albion_Marketrelli-v1.1.0-node-tests.txt
           node --check albionapp/src/main/assets/www/app.js
           node --check albionapp/src/main/assets/www/src/core.mjs
+
+      - name: Probar diseño en múltiples anchos y navegaciones
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet playwright==1.57.0
+          CHROMIUM_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROMIUM_BIN"
+          export CHROMIUM_BIN
+          python3 albionapp/web-tests/layout_test.py | tee Albion_Marketrelli-v1.1.0-layout-tests.txt
 
       - name: Comprobar Android SDK 35 preinstalado
         shell: bash
@@ -84,6 +103,10 @@ jobs:
           set -euo pipefail
           test -d "$ANDROID_HOME/platforms/android-35"
           test -d "$ANDROID_HOME/build-tools/35.0.0"
+
+      - name: Ejecutar pruebas unitarias Android
+        shell: bash
+        run: gradle :albionapp:testDebugUnitTest --no-daemon --stacktrace
 
       - name: Compilar APK de depuración
         shell: bash
@@ -94,8 +117,8 @@ jobs:
         run: |
           set -euo pipefail
           APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
-          OUTPUT="Albion_Marketrelli-v1.0.0.apk"
-          PREFIX="Albion_Marketrelli-v1.0.0"
+          OUTPUT="Albion_Marketrelli-v1.1.0.apk"
+          PREFIX="Albion_Marketrelli-v1.1.0"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$APK"
@@ -103,28 +126,40 @@ jobs:
           "$BUILD_TOOLS/aapt" dump badging "$APK" | tee "${PREFIX}-badging.txt"
 
           grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" "${PREFIX}-signature.txt"
-          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='1' versionName='1.0.0'" "${PREFIX}-badging.txt"
+          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='2' versionName='1.1.0'" "${PREFIX}-badging.txt"
           grep -F "application-label:'Albion Marketrelli'" "${PREFIX}-badging.txt"
           grep -F "sdkVersion:'26'" "${PREFIX}-badging.txt"
           grep -F "targetSdkVersion:'35'" "${PREFIX}-badging.txt"
+
           unzip -l "$APK" | grep -F "assets/www/index.html"
           unzip -l "$APK" | grep -F "assets/www/app.js"
           unzip -l "$APK" | grep -F "assets/www/src/core.mjs"
+          unzip -l "$APK" | grep -F "assets/www/styles.css"
+          unzip -l "$APK" | grep -F "assets/www/icons/icon-192.png"
           unzip -l "$APK" | grep -F "res/drawable/app_icon.png"
+
+          unzip -p "$APK" assets/www/index.html | grep -F "Albion Marketrelli"
+          unzip -p "$APK" assets/www/manifest.webmanifest | grep -F '"name": "Albion Marketrelli"'
+          unzip -p "$APK" assets/www/src/core.mjs | grep -F "Black Market"
+          unzip -p "$APK" assets/www/src/core.mjs | grep -F "T4_BAG"
+          unzip -p "$APK" assets/www/styles.css | grep -F "overflow-x: clip"
 
           cp "$APK" "$OUTPUT"
           sha256sum "$OUTPUT" | tee "${PREFIX}.sha256"
           stat --printf='Tamaño: %s bytes\n' "$OUTPUT" | tee "${PREFIX}-size.txt"
 
-      - name: Publicar APK compilado
+      - name: Publicar APK verificado
         uses: actions/upload-artifact@v4
         with:
-          name: Albion_Marketrelli-v1.0.0
+          name: Albion_Marketrelli-v1.1.0
           path: |
-            Albion_Marketrelli-v1.0.0.apk
-            Albion_Marketrelli-v1.0.0.sha256
-            Albion_Marketrelli-v1.0.0-size.txt
-            Albion_Marketrelli-v1.0.0-badging.txt
-            Albion_Marketrelli-v1.0.0-signature.txt
+            Albion_Marketrelli-v1.1.0.apk
+            Albion_Marketrelli-v1.1.0.sha256
+            Albion_Marketrelli-v1.1.0-size.txt
+            Albion_Marketrelli-v1.1.0-badging.txt
+            Albion_Marketrelli-v1.1.0-signature.txt
+            Albion_Marketrelli-v1.1.0-node-tests.txt
+            Albion_Marketrelli-v1.1.0-layout-tests.txt
+            albionapp/build/test-results/testDebugUnitTest/*.xml
           if-no-files-found: error
           retention-days: 30
