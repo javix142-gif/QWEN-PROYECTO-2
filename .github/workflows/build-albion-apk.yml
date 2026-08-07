@@ -1,7 +1,10 @@
-name: Compilar Albion Marketrelli APK
+name: Compilar Albion Marketrelli 1.1.1 APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - build/albion-market-america-apk
 
 permissions:
   contents: read
@@ -9,5 +12,170 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
     steps:
-      - run: echo "Workflow temporalmente pausado durante preparación de corrección de arranque"
+      - name: Descargar repositorio
+        uses: actions/checkout@v6
+
+      - name: Reconstruir fuente base y aplicar corrección 1.1.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_B64="/tmp/albion-marketrelli-v1.1.0-source.zip.b64"
+          SOURCE_ZIP="/tmp/albion-marketrelli-v1.1.0-source.zip"
+          cat \
+            build-src/albion-marketrelli-v1.1.0.part-00 \
+            build-src/albion-marketrelli-v1.1.0.part-01 \
+            build-src/albion-marketrelli-v1.1.0.part-02 \
+            build-src/albion-marketrelli-v1.1.0.part-03 \
+            build-src/albion-marketrelli-v1.1.0.part-04 \
+            build-src/albion-marketrelli-v1.1.0.part-05 \
+            build-src/albion-marketrelli-v1.1.0.part-06 \
+            build-src/albion-marketrelli-v1.1.0.part-07 \
+            build-src/albion-marketrelli-v1.1.0.part-08 \
+            build-src/albion-marketrelli-v1.1.0.part-09a \
+            build-src/albion-marketrelli-v1.1.0.part-09b \
+            build-src/albion-marketrelli-v1.1.0.part-10a \
+            build-src/albion-marketrelli-v1.1.0.part-10b \
+            build-src/albion-marketrelli-v1.1.0.part-11a \
+            build-src/albion-marketrelli-v1.1.0.part-11b \
+            build-src/albion-marketrelli-v1.1.0.part-12a \
+            build-src/albion-marketrelli-v1.1.0.part-12b1 \
+            build-src/albion-marketrelli-v1.1.0.part-12b2 \
+            build-src/albion-marketrelli-v1.1.0.part-13a1 \
+            build-src/albion-marketrelli-v1.1.0.part-13a2 \
+            build-src/albion-marketrelli-v1.1.0.part-13b \
+            build-src/albion-marketrelli-v1.1.0.part-14a \
+            build-src/albion-marketrelli-v1.1.0.part-14b \
+            | tr -d '\r\n' > "$SOURCE_B64"
+          base64 --decode "$SOURCE_B64" > "$SOURCE_ZIP"
+          unzip -oq "$SOURCE_ZIP" -d . || true
+          test -s albionapp/src/main/res/drawable/app_icon.png
+          cp albionapp/src/main/res/drawable/app_icon.png albionapp/src/main/assets/www/icons/icon-512.png
+
+          cp overrides/v1.1.1/MainActivity.java albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
+          cp overrides/v1.1.1/build.gradle.kts albionapp/build.gradle.kts
+          cp overrides/v1.1.1/android-config.test.mjs albionapp/web-tests/android-config.test.mjs
+          cp overrides/v1.1.1/PROJECT_STATE.md albionapp/PROJECT_STATE.md
+
+          grep -F 'versionCode = 3' albionapp/build.gradle.kts
+          grep -F 'versionName = "1.1.1"' albionapp/build.gradle.kts
+          grep -F 'AlbionMarketrelli/1.1.1' albionapp/src/main/java/cl/javiersanmartin/albionmarketamerica/MainActivity.java
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+          cache-provider: basic
+
+      - name: Validar lógica y configuración
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test albionapp/web-tests/core.test.mjs albionapp/web-tests/android-config.test.mjs | tee Albion_Marketrelli-v1.1.1-node-tests.txt
+          node --check albionapp/src/main/assets/www/app.js
+          node --check albionapp/src/main/assets/www/src/core.mjs
+
+      - name: Probar diseño responsive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet playwright==1.57.0
+          CHROMIUM_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROMIUM_BIN"
+          export CHROMIUM_BIN
+          python3 albionapp/web-tests/layout_test.py | tee Albion_Marketrelli-v1.1.1-layout-tests.txt
+
+      - name: Ejecutar pruebas unitarias Android
+        shell: bash
+        run: gradle :albionapp:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Compilar APK
+        shell: bash
+        run: gradle :albionapp:assembleDebug --no-daemon --stacktrace
+
+      - name: Smoke test de arranque en Android 16
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          AVDMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+          EMULATOR="$ANDROID_HOME/emulator/emulator"
+          APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
+          PACKAGE="cl.javiersanmartin.albionmarketrelli"
+          COMPONENT="$PACKAGE/cl.javiersanmartin.albionmarketamerica.MainActivity"
+
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "emulator" "system-images;android-36;google_apis;x86_64"
+          echo no | "$AVDMANAGER" create avd --force --name marketrelli_api36 --package "system-images;android-36;google_apis;x86_64"
+          "$EMULATOR" -avd marketrelli_api36 -no-window -noaudio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > emulator.log 2>&1 &
+          EMULATOR_PID=$!
+          trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
+
+          adb wait-for-device
+          for i in $(seq 1 90); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then break; fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+
+          adb install -r "$APK"
+          adb logcat -c
+          adb shell am start -W -n "$COMPONENT" | tee Albion_Marketrelli-v1.1.1-startup.txt
+          sleep 8
+          PID="$(adb shell pidof "$PACKAGE" | tr -d '\r')"
+          test -n "$PID"
+          adb logcat -d > Albion_Marketrelli-v1.1.1-logcat.txt
+          if grep -E "FATAL EXCEPTION: main|Process: ${PACKAGE}" Albion_Marketrelli-v1.1.1-logcat.txt; then
+            exit 1
+          fi
+
+      - name: Verificar APK, firma y metadatos
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="albionapp/build/outputs/apk/debug/albionapp-debug.apk"
+          OUTPUT="Albion_Marketrelli-v1.1.1.apk"
+          PREFIX="Albion_Marketrelli-v1.1.1"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          test -s "$APK"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee "${PREFIX}-signature.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee "${PREFIX}-badging.txt"
+          grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" "${PREFIX}-signature.txt"
+          grep -F "package: name='cl.javiersanmartin.albionmarketrelli' versionCode='3' versionName='1.1.1'" "${PREFIX}-badging.txt"
+          grep -F "application-label:'Albion Marketrelli'" "${PREFIX}-badging.txt"
+          grep -F "sdkVersion:'26'" "${PREFIX}-badging.txt"
+          grep -F "targetSdkVersion:'35'" "${PREFIX}-badging.txt"
+          cp "$APK" "$OUTPUT"
+          sha256sum "$OUTPUT" | tee "${PREFIX}.sha256"
+          stat --printf='Tamaño: %s bytes\n' "$OUTPUT" | tee "${PREFIX}-size.txt"
+
+      - name: Publicar APK verificado
+        uses: actions/upload-artifact@v4
+        with:
+          name: Albion_Marketrelli-v1.1.1
+          path: |
+            Albion_Marketrelli-v1.1.1.apk
+            Albion_Marketrelli-v1.1.1.sha256
+            Albion_Marketrelli-v1.1.1-size.txt
+            Albion_Marketrelli-v1.1.1-badging.txt
+            Albion_Marketrelli-v1.1.1-signature.txt
+            Albion_Marketrelli-v1.1.1-node-tests.txt
+            Albion_Marketrelli-v1.1.1-layout-tests.txt
+            Albion_Marketrelli-v1.1.1-startup.txt
+            Albion_Marketrelli-v1.1.1-logcat.txt
+            albionapp/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: error
+          retention-days: 30
