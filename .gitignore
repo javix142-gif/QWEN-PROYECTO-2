@@ -1,5 +1,1 @@
-.gradle/
-.idea/
-local.properties
-**/build/
-*.iml
+Nothing needs to be added to .gitignore since the changes only include source/config files (README.md, .txt files) and no build artifacts, dependencies, or temporary files.
